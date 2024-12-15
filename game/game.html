@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ular Sanca Rakus</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #111;
+            color: #fff;
+            flex-direction: column;
+        }
+
+        #gameBoard {
+            width: 400px;
+            height: 400px;
+            background-color: #333;
+            position: relative;
+            overflow: hidden;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        #score, #level, #lives {
+            font-size: 20px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .snake {
+            width: 20px;
+            height: 20px;
+            position: absolute;
+            background-color: #4CAF50;
+            border-radius: 50%;
+        }
+
+        .food {
+            width: 20px;
+            height: 20px;
+            position: absolute;
+            background-color: #FF0000;
+            border-radius: 50%;
+        }
+
+        .boost {
+            width: 20px;
+            height: 20px;
+            position: absolute;
+            background-color: #FFD700;
+            border-radius: 50%;
+        }
+
+        .obstacle {
+            width: 20px;
+            height: 20px;
+            position: absolute;
+            background-color: #808080;
+        }
+
+        #title {
+            text-align: center;
+            font-size: 30px;
+            color: #FFD700;
+            margin-bottom: 20px;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="title">Game Ular Sanca </div>
+    <div id="score">Skor: 0</div>
+    <div id="level">Level: 1</div>
+    <div id="lives">Nyawa: 3</div>
+    <div id="gameBoard"></div>
+
+    <script>
+        const board = document.getElementById("gameBoard");
+        const scoreDisplay = document.getElementById("score");
+        const levelDisplay = document.getElementById("level");
+        const livesDisplay = document.getElementById("lives");
+
+        const boardSize = 400;
+        const tileSize = 20;
+        let snake = [{ x: 200, y: 200 }];
+        let direction = { x: 0, y: 0 };
+        let food = { x: 0, y: 0 };
+        let boost = { x: 0, y: 0 };
+        let obstacles = [];
+        let score = 0;
+        let level = 1;
+        let lives = 3;
+        let gameInterval;
+        let speed = 100;
+
+        function startGame() {
+            placeFood();
+            placeBoost();
+            generateObstacles();
+            document.addEventListener("keydown", changeDirection);
+            gameInterval = setInterval(updateGame, speed);
+        }
+
+        function changeDirection(event) {
+            const key = event.key;
+            if (key === "ArrowUp" && direction.y === 0) {
+                direction = { x: 0, y: -tileSize };
+            } else if (key === "ArrowDown" && direction.y === 0) {
+                direction = { x: 0, y: tileSize };
+            } else if (key === "ArrowLeft" && direction.x === 0) {
+                direction = { x: -tileSize, y: 0 };
+            } else if (key === "ArrowRight" && direction.x === 0) {
+                direction = { x: tileSize, y: 0 };
+            }
+        }
+
+        function placeFood() {
+            food.x = Math.floor(Math.random() * (boardSize / tileSize)) * tileSize;
+            food.y = Math.floor(Math.random() * (boardSize / tileSize)) * tileSize;
+            drawFood();
+        }
+
+        function placeBoost() {
+            boost.x = Math.floor(Math.random() * (boardSize / tileSize)) * tileSize;
+            boost.y = Math.floor(Math.random() * (boardSize / tileSize)) * tileSize;
+            drawBoost();
+        }
+
+        function generateObstacles() {
+            obstacles = [];
+            for (let i = 0; i < level * 2; i++) {
+                const x = Math.floor(Math.random() * (boardSize / tileSize)) * tileSize;
+                const y = Math.floor(Math.random() * (boardSize / tileSize)) * tileSize;
+                obstacles.push({ x, y });
+            }
+            drawObstacles();
+        }
+
+        function drawFood() {
+            const foodElement = document.createElement("div");
+            foodElement.style.left = food.x + "px";
+            foodElement.style.top = food.y + "px";
+            foodElement.classList.add("food");
+            board.appendChild(foodElement);
+        }
+
+        function drawBoost() {
+            const boostElement = document.createElement("div");
+            boostElement.style.left = boost.x + "px";
+            boostElement.style.top = boost.y + "px";
+            boostElement.classList.add("boost");
+            board.appendChild(boostElement);
+        }
+
+        function drawObstacles() {
+            obstacles.forEach(obstacle => {
+                const obstacleElement = document.createElement("div");
+                obstacleElement.style.left = obstacle.x + "px";
+                obstacleElement.style.top = obstacle.y + "px";
+                obstacleElement.classList.add("obstacle");
+                board.appendChild(obstacleElement);
+            });
+        }
+
+        function updateGame() {
+            const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+
+            if (head.x < 0) head.x = boardSize - tileSize;
+            if (head.y < 0) head.y = boardSize - tileSize;
+            if (head.x >= boardSize) head.x = 0;
+            if (head.y >= boardSize) head.y = 0;
+
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                scoreDisplay.textContent = "Skor: " + score;
+                board.removeChild(document.querySelector(".food"));
+                placeFood();
+                if (score % 5 === 0) {
+                    levelUp();
+                }
+            } else if (head.x === boost.x && head.y === boost.y) {
+                speedBoost();
+                board.removeChild(document.querySelector(".boost"));
+                placeBoost();
+            } else {
+                snake.pop();
+            }
+
+            if (isCollision(head) || hitObstacle(head)) {
+                lives--;
+                livesDisplay.textContent = "Nyawa: " + lives;
+                if (lives === 0) {
+                    gameOver();
+                } else {
+                    resetSnake();
+                }
+            }
+
+            drawSnake();
+        }
+
+        function drawSnake() {
+            board.innerHTML = "";
+            snake.forEach((part, index) => {
+                const snakePart = document.createElement("div");
+                snakePart.style.left = part.x + "px";
+                snakePart.style.top = part.y + "px";
+                snakePart.classList.add("snake");
+
+                if (index === 0) {
+                    snakePart.style.backgroundColor = "#66FF33";
+                } else if (index === snake.length - 1) {
+                    snakePart.style.backgroundColor = "#4CAF50";
+                }
+                board.appendChild(snakePart);
+            });
+            drawFood();
+            drawBoost();
+            drawObstacles();
+        }
+
+        function isCollision(head) {
+            return snake.slice(1).some(part => part.x === head.x && part.y === head.y);
+        }
+
+        function hitObstacle(head) {
+            return obstacles.some(obstacle => obstacle.x === head.x && obstacle.y === head.y);
+        }
+
+        function levelUp() {
+            level++;
+            levelDisplay.textContent = "Level: " + level;
+            if (speed > 50) {
+                speed -= 10;
+                clearInterval(gameInterval);
+                gameInterval = setInterval(updateGame, speed);
+            }
+            generateObstacles();
+        }
+
+        function speedBoost() {
+            if (speed > 50) {
+                speed -= 20;
+                clearInterval(gameInterval);
+                gameInterval = setInterval(updateGame, speed);
+            }
+        }
+
+        function gameOver() {
+            clearInterval(gameInterval);
+            alert("Game Over! Skor kamu: " + score);
+            location.reload();
+        }
+
+        function resetSnake() {
+            snake = [{ x: 200, y: 200 }];
+            direction = { x: 0, y: 0 };
+        }
+
+        startGame();
+    </script>
+</body>
+</html
